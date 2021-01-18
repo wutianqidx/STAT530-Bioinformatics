@@ -1,0 +1,13 @@
+STAT530 HW1
+Tianqi Wu (twu38)
+My degree program is MS Stats. You may want to resize the window for better visualization.
+
+
+
+Problem 1:
+
+Name		Email			Degree_Program				Research_Interests
+Yuanxi Fu	fu5@illinois.edu	MS Bioinformatics			Arguments in Science
+You Jin Song	yjsong2@illinois.edu	PhD Cell and developmental biology	Gene expression and cancer
+Chu Yun Teo	cteo2@ilinois.edu	PhD biochemistry			Cancer 
+Tianyu Ao	tianyua2@illinois.edu	MS Computer Science			Database Systems

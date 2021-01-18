@@ -1,0 +1,198 @@
+---
+title: "HW8"
+author: "Tianqi Wu"
+date: "4/2/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,message=F,warings=F}
+library(tidyverse)
+library(edgeR)
+library(glmnet)
+library(pheatmap)
+library(NMF)
+library(factoextra)
+library(MASS)
+library(umap)
+library(dbscan)
+load("gtex_subset.RData") ## replace path with wherever you stored your file
+expr1 = cpm(gtex_subset, log = TRUE)
+expr1 = t(expr1)
+```
+
+# Problem 1
+
+## 1(a)
+
+For lasso model, lambda.min has 20 nonzero coeffcients. It means that 20 genes are likely useful for discriminating between tissues.
+
+```{r}
+set.seed(123)
+# Remove zero variance
+removed = c()
+for (i in 1:ncol(expr)){
+  if (var(expr[, i]) == 0){
+    print(i)
+    removed = append(removed, colnames(expr)[i])
+  }
+}
+```
+
+```{r}
+# Lasso
+lasso <- cv.glmnet(x = expr,
+                   y = tissue,
+                   nfolds = 3,
+                   family = "binomial")
+
+print(lasso)
+```
+
+
+## 1(b)
+
+The top 5 genes with the most influence are ENSG00000261012.2, ENSG00000121075.9, ENSG00000255399.3,
+ENSG00000259203.1 and ENSG00000225383.7 
+
+```{r, message=FALSE}
+lasso.coef = coef(lasso, s = 'lambda.min')
+lasso.coef@Dimnames[[1]][2:nrow(lasso.coef)] = gene_names
+
+lasso.o = order(abs(lasso.coef), decreasing = TRUE)
+lasso.coef[lasso.o,][1:6]
+```
+
+## 1(c)
+
+For elastic net model, lambda.min has 315 nonzero coefficients. It means that 315 genes are likely useful for discriminating between tissues. The top 5 genes with the most influence are ENSG00000132670.20, ENSG00000259203.1, ENSG00000198382.8, ENSG00000267675.1 and ENSG00000255399.3.
+
+```{r, message=FALSE}
+# Elastic net
+elnet <- cv.glmnet(x = expr,
+                   y = tissue,
+                   n_fold = 3,
+                   family = "binomial",
+                   alpha=0.5)
+  
+print(elnet)
+elnet.coef = coef(elnet, s = 'lambda.min')
+elnet.coef@Dimnames[[1]][2:nrow(elnet.coef)] = gene_names
+
+elnet.o = order(abs(elnet.coef), decreasing = TRUE)
+elnet.coef[elnet.o,][1:6]
+
+```
+
+
+# Problem 2
+
+The output of summary of p-values are given below. There are 29385 genes differentially expressed at the 0.01 level after Bonferroni correction and 34410 genes differentially expressed at the 0.01 level after FDR correction.
+
+```{r}
+## test for differentially expressed genes
+ps <- apply(expr[, 1:ncol(expr)], 2, function(y) {
+    wilcox.test(y ~ tissue)$p.value
+})
+```
+
+```{r}
+## adjusting p-values
+summary(ps)
+sum(p.adjust(ps, method = "bonferroni") <= 0.01) ## bonferroni
+sum(p.adjust(ps, method = "fdr") <= 0.01) ## fdr
+```
+
+# Problem 3
+
+## 3(a)
+
+From the hierarchical clustering, we can see that most entries have similar values but there are some entries with extreme values. Although it is not very clear, we can see that hierarchical clustering separates the samples into two clusters.
+
+```{r}
+## hierarchical clustering
+expr.scale.1000 = scale(expr[,1:1000])
+res = pheatmap(expr.scale.1000,
+               cluster_cols = FALSE,
+               cluster_distance_rows = "correlation",
+               show_rownames = FALSE,
+               show_colnames = FALSE)
+```
+
+## 3(b)
+
+From the contingency table, only one liver sample is misclassified as lung if we cut the tree at two clusters. Hence, the clustering result is nearly perfect.
+
+```{r}
+## cut tree
+clust <- cutree(res$tree_row, k = 2)
+
+table(clust, tissue)
+```
+
+
+## 3(c)
+
+If we choose k=128, there are three clusters and two of those should belong to the same cluster for actual data. The clustering result is worse than hierarchical clustering.
+
+```{r}
+## snn clustering
+expr.scale = scale(expr)
+res <- sNNclust(expr.scale,
+                k = 128,
+                eps = 5,
+                minPts = 5)
+
+clust <- res$cluster
+table(clust, tissue)
+```
+
+## 3(d)
+
+The umap result is shown below and we can see that two of the clusters should actually be merged into one.
+```{r}
+## umap
+um = umap(expr)
+df = data.frame(x = um$layout[,1],
+                y = um$layout[,2],
+                tissue_type = tissue)
+
+df$cluster = as.factor(clust)
+ggplot(data = df,
+       mapping = aes(x = x,
+                     y = y,
+                     shape = tissue,
+                     color = cluster)) +
+    geom_point(size = 5)
+```
+
+
+## 3(e)
+From the scree plot, the first four principle components explain ~30% of the variation in data. Since all other principle components explain less than 2% of the variation. Four principle components might be enough to summarize the data.
+
+```{r}
+## pca
+pca_out <- prcomp(expr, center = TRUE, scale = TRUE)
+fviz_eig(pca_out, geom = "bar", bar_width = 0.4) + ggtitle("")
+```
+
+
+## 3(f)
+
+From the plot, two clusters are separated nearly perfect.
+```{r}
+## plot pca
+fviz_pca_ind(pca_out,
+             geom = "point",
+             habillage = tissue,
+             palette = "npg",
+             mean.point = FALSE
+)
+```
+
+
+
+

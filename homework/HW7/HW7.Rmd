@@ -1,0 +1,213 @@
+---
+title: "HW7"
+author: "Tianqi Wu"
+date: "3/24/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,message=FALSE, warning=FALSE}
+library(readxl)
+library(tidyverse)
+library(glmnet)
+library(caret)
+library(compositions)
+```
+
+# Problem 1
+
+## In one sentence, explain what the point of this study is
+The study finds the relationship between composition of intestinal microbial communities and enteric infections and ways for prevention strategies.
+
+## In one sentence, report the major finding of this study.
+The intestinal microbial communities of patients have more Proteobacteria representing genus Escherichia relative to communities of healhty family members, which were dominated by Bacteroides and Firmicutes.
+
+## What type of study is this: a) Cohort, b) Cross-sectional, c) Case-control
+It is a case-control study.
+
+## What population were the data in this study sampled from?
+The population were sampled from patients with enteric infections at four participating hospitals and the Michigan Department of Health and Human Services (MDHHS).
+
+# Problem 2
+
+## How many subjects were in your final merged dataset?
+The dimension of final merged dataset is (267, 256). There are 267 subjects in the merged dataset.
+
+## How many OTUs did you remove, and which ones?
+I removed 1 OTU (k__Bacteria;p__Proteobacteria;c__Alphaproteobacteria;o__Rhizobiales;f__Phyllobacteriaceae;g__Phyllobacterium)
+
+## How many OTUs were in your final merged dataset?
+There are 252 OUTs in the merged dataset.
+
+&nbsp;
+
+```{r,message=FALSE, warning=FALSE}
+Add_4 = read_excel('40168_2015_109_MOESM4_ESM.xlsx')
+Add_5 = read_excel('40168_2015_109_MOESM5_ESM.xlsx')
+
+colnames(Add_5)[1] = 'SampleID'
+removed = c()
+for (i in 2:ncol(Add_5)){
+  if (var(Add_5[, i]) == 0){
+    print(i)
+    removed = append(removed, colnames(Add_5)[i])
+  }
+}
+Add_5_new = Add_5[ , !(names(Add_5) %in% removed)]
+merged = inner_join(Add_4, Add_5_new, by='SampleID')
+
+for (i in 5:ncol(merged)){
+  if (var(merged[, i]) == 0){
+    print(i)
+    removed = append(removed, colnames(merged)[i])
+  }
+}
+removed
+```
+
+
+# Problem 3
+## estimated testing error
+The estimated testing error is 0.8224294.
+
+## true testing error
+The true testing error is 0.1791045.
+
+## How many OTUs are used in the final prediction rule?
+There are 37 OTUs used in the final prediction rule.
+
+## Which OTU seems to have the biggest effect?
+"k__Bacteria;p__Firmicutes;c__Clostridia;o__Clostridiales;f__Eubacteriaceae;g__Anaerofustis" has the biggest negative effect of 1773.992 on the prediction.
+
+&nbsp;
+
+```{r}
+set.seed(123)
+LASSO = function(data){
+  train_idx <- sample(1:nrow(data), nrow(data) * 0.75)
+  train <- merged[train_idx, ]
+  test <- merged[-train_idx, ]
+  
+  lasso <- cv.glmnet(x = data.matrix(train[,5:ncol(train)]),
+                     y = as.factor(train$Status),
+                     nfolds = 5,
+                     family = "binomial")
+  
+  ## estimated testing error from cross-validation
+  print(lasso)
+  cat('estimated testing error:', min(lasso$cvm),'\n')
+  
+  ## predictions
+  pred <- predict(lasso,
+                  newx = data.matrix(test[,5:ncol(test)]),
+                  s = "lambda.min",
+                  type = "class")
+  
+  ## true testing error
+  cat('true testing error:', mean(as.character(pred) != as.character(test$Status)),'\n')
+  
+  mycoef = coef(lasso, s = "lambda.min")
+  max_coef = max(abs(mycoef))
+  max_index = which(abs(mycoef)==max_coef)
+  cat('max_coef:', max_coef,'\n')
+  cat('OTU with the biggest effect:',mycoef@Dimnames[[1]][max_index],'\n')
+}
+LASSO(merged)
+```
+
+# Problem 4
+
+## estimated testing accuracy
+The estimated testing accuracy of the optimal tuning parameter using 5-fold cross-validation is 0.8849312 with parameters (mtry = 127, splitrule = extratrees and min.node.size = 1).
+
+## true testing error
+The true testing error is 0.1044776.
+
+## Which algorithm performed better, the lasso, or random forest?
+Random forest is better ince it has lower testing error (0.1044776 < 0.1791045).
+
+&nbsp;
+
+```{r}
+set.seed(123)
+RF = function(data){
+  train_idx <- sample(1:nrow(data), nrow(data) * 0.75)
+  train <- merged[train_idx, ]
+  test <- merged[-train_idx, ]
+  
+  train_small <- train[, c(2, 5:ncol(train))]
+  test_small <- test[, c(2, 5:ncol(test))]
+  rf <- train(Status ~ .,
+              data = train_small,
+              method = "ranger",
+              trControl = trainControl(method = "cv", 
+                                       number = 5))
+  
+  
+  ## estimated testing accuracy from cross-validation
+  print(rf)
+  
+  ## predictions
+  pred <- predict(rf, test_small)
+  
+  cat('true testing error:',mean(as.character(pred) != as.character(test$Status)))
+}
+RF(merged)
+```
+
+
+# Problem 5 
+
+## LASSO
+
+### estimated testing error
+The estimated testing error is 0.8638855.
+
+### true testing error
+The true testing error is 0.1641791.
+
+### How many OTUs are used in the final prediction rule?
+There are 18 OTUs used in the final prediction rule.
+
+### Which OTU seems to have the biggest effect?
+"k__Bacteria;p__Bacteroidetes;c__Bacteroidia;o__Bacteroidales;f__Rikenellaceae;g__AF12" has the biggest negative effect of 110.98  on the prediction.
+
+## Random Forest
+
+### estimated testing accuracy
+The estimated testing accuracy of the optimal tuning parameter using 5-fold cross-validation is 0.8901032 with parameters (mtry = 127, splitrule = extratrees and min.node.size = 1).
+
+### true testing error
+The true testing error is 0.07462687.
+
+### Which algorithm performed better, the lasso with transformed, or random forest with transformed?
+Random forest with transformed is better ince it has lower testing error (0.07462687 < 0.1641791).
+
+## Which algorithm was best?
+Random forest with transformed is best since it has the lowest testing error.
+
+&nbsp;
+
+```{r}
+clr_merged = clr(merged[5:ncol(merged)])
+new_merged = merged
+new_merged[5:ncol(merged)] = clr_merged
+LASSO(new_merged)
+RF(new_merged)
+```
+
+
+1. 找个类似hw7的task，用OTUs来predict disease status.  但这种对于我们四人组可能有点短
+https://academic.oup.com/gigascience/article/8/5/giz042/5481665
+
+2. 找个类似hw8&9的，之前我们只用了一小部分data predict lung 和liver吧，我们还可以用predict 一些别的tissue type。
+https://www.gtexportal.org/home/datasets 
+
+3.类似hw10&11的，做 differential gene expression analysis 和 enrichment analysis。
+
+主要我对生物理论方面啥都不懂，只能想到类似hw的，而且我也不知道他想不想让我们用课上学的来做project。如果不需要的话我还想做些别的regression/classification, 比如看图分类健康还是患病了，但可能就和genomics没啥关系了
+https://www.kaggle.com/c/prostate-cancer-grade-assessment
+

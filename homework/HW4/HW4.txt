@@ -1,0 +1,110 @@
+STAT530 HW4
+Tianqi Wu (twu38)
+
+#Problem 1
+## multiplication
+mul_rat <- function(x,y){
+  n <- numer(x) * numer(y)
+  d <- denom(x) * denom(y)
+  return(make_rat(n,d))
+}
+
+## division
+div_rat <-function(x,y){
+  n <- numer(x) * denom(y)
+  d <- denom(x) * numer(y)
+  return(make_rat(n,d))
+}
+
+## testing
+equal_rat <- function(x,y){
+  return(numer(x)*denom(y)==numer(y)*denom(x))
+}
+
+
+# Problem 2
+
+f <-function(n){
+  if (n < 3) return(n)
+  f_prev = 2
+  f_prev_prev = 1
+  for (i in 3:n){
+    curr = f_prev+2*f_prev_prev
+    f_prev_prev = f_prev
+    f_prev = curr
+  }
+  return(curr)
+}
+
+
+# Problem 3
+## GCD
+GCD <- function(x,y){
+  for (i in 1:min(x,y)){
+    if(x%%i==0 & y%%i==0) gcd=i
+  }
+  return(gcd)
+}
+
+##simplify
+simplify_rat <- function(x){
+  gcd = GCD(numer(x),denom(x))
+  n = numer(x)/gcd
+  d = denom(x)/gcd
+  return(make_rat(n,d))
+}
+
+
+# Problem 4
+## Section 3.2.5 Exercises 2
+> c(1, FALSE)
+[1] 1 0
+> c("a", 1)
+[1] "a" "1"
+> c(TRUE, 1L)
+[1] 1 1
+
+## Section 3.2.5 Exercises 3 
+From documentation of operator '==' and '<', If the two arguments are atomic vectors of different types, one is coerced to the type of the other, the (decreasing) order of precedence being character, complex, numeric, integer, logical and raw.
+
+1) For 1 == "1", the type of 1 is coerced to character to perform the '==' operation.
+since '1' == '1' is true, 1 == '1' is true.
+
+2) For -1 < FALSE, the type of FALSE is coerced to numeric(0) to perform the '<' operation.
+Since -1 < 0 is true, -1 < FALSE is true.
+
+3) For "one" < 2, the type of 2 is coerced to character to perform the '< operation'.
+Then, we do a alphabetical comparison. Since numeric characters come before alphabetical ones, 'one' < 2 is true.
+
+## Section 3.3.4 Exercises 2
+dim() returns NULL for 1-dimensional vector since it only has length. dim() only applies to higher dimensions.
+NROW() and NCOL() return number of rows and columns of given data like nrow() and ncol(). When dealing with 1-dimensional vector, nrow() and ncol() return NULL but NROW() and NCOL() treat the vector as 1-column matrix.
+
+## Section 3.3.4 Exercises 3
+x1 <- array(1:5, c(1, 1, 5))
+x2 <- array(1:5, c(1, 5, 1))
+x3 <- array(1:5, c(5, 1, 1))
+
+x1, x2 and x3 are three-dimension arrays with values of 1,2,3,4,5 on third, second and first dimension respectively. The dimension of x1 is (1,1,5), the dimension of x2 is (1,5,1) and the dimension of x3 is (5,1,1).1:5 is a 1-dimensional vector with value 1,2,3,4,5 and it does not have dimension attribute.
+
+## Section 3.4.5 Exercises 2
+Modifying levels of the factor modifies both its levels and factor elements. f1: a,b,c...(levels:a,b,c...) changes to z,y,x...(levels:z,y,x)
+
+## Section 3.4.5 Exercises 3
+f2: z,y,x...(levels:a,b,c)
+f3: a,b,c...(levels:z,y,x)
+
+f2 modifies the factor elements but not the levels. f3 modifies the levels but not the factor elements. f1 modifies both levels and factor elements.
+
+## Section 3.5.4 Exercises 2
+list is vector but not atomic vector. as.vector() would only remove its attributes but leave it as a list.
+
+## Section 3.6.8 Exercises 1
+Yes, we can have zero rows and zero columns for dataframe. Suppose our dataframe is called x. Then, x[0,] has zero rows and x[,0] has zero columns.
+
+## Section 3.6.8 Exercises 2
+There will be error if one want to set rownames that are not unique for dataframe since the rownames for dataframe are required to be unqiue.
+
+## Section 3.6.8 Exercises 4
+For dataframe with different types, as.matrix() would coerced to the same type according to the rule (logical < integer < double < complex).
+data.matrix() converts the dataframe to numeric matrix where characters are replaced with NA.
